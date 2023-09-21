@@ -147,7 +147,7 @@ public class BPlusTree {
 
         // TODO(proj2): implement
         
-        // get leaf node starting from this.root and recursively traverse down
+        // get leaf node starting from this.root and recursively call get()
         LeafNode leaf = this.root.get(key);
         return leaf.getKey(key); //traverse leaf node ids and return either recordID or empty
     }

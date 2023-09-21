@@ -180,6 +180,7 @@ class LeafNode extends BPlusNode {
     @Override
     public void remove(DataBox key) {
         // TODO(proj2): implement
+        //syncs tree changes, and removes keyID and rID from arrays
         this.sync();
         int idx = this.getKeys().indexOf(key);
         this.getKeys().remove(idx);
