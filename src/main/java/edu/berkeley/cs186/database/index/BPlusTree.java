@@ -146,8 +146,10 @@ public class BPlusTree {
         LockUtil.ensureSufficientLockHeld(lockContext, LockType.NL);
 
         // TODO(proj2): implement
-
-        return Optional.empty();
+        
+        // get leaf node starting from this.root and recursively traverse down
+        LeafNode leaf = this.root.get(key);
+        return leaf.getKey(key); //traverse leaf node ids and return either recordID or empty
     }
 
     /**

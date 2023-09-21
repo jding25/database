@@ -4,6 +4,7 @@ import edu.berkeley.cs186.database.common.Buffer;
 import edu.berkeley.cs186.database.common.Pair;
 import edu.berkeley.cs186.database.concurrency.LockContext;
 import edu.berkeley.cs186.database.databox.DataBox;
+import edu.berkeley.cs186.database.databox.IntDataBox;
 import edu.berkeley.cs186.database.databox.Type;
 import edu.berkeley.cs186.database.memory.BufferManager;
 import edu.berkeley.cs186.database.memory.Page;
@@ -81,8 +82,29 @@ class InnerNode extends BPlusNode {
     @Override
     public LeafNode get(DataBox key) {
         // TODO(proj2): implement
-
-        return null;
+        //Performs binary search on key values assuming sorted key array
+        int startIdx = 0, endIdx = this.keys.size() - 1;
+        //Initialize node to smallest child node
+        BPlusNode node = this.getChild(startIdx);
+        while (startIdx <= endIdx) {
+            int midIdx = Math.floorDiv(startIdx + endIdx, 2);
+            int dataBoxCompare = key.compareTo(this.keys.get(midIdx));
+            //if keyID == midID...
+            if (dataBoxCompare == 0) {
+                node = this.getChild(midIdx + 1);
+                break;
+            //else if keyID > midID...
+            }else if (dataBoxCompare == 1) {
+                startIdx = midIdx + 1;
+                node = this.getChild(midIdx + 1);
+            //else keyID < midID
+            } else {
+                endIdx = midIdx-1;
+                node = this.getChild(midIdx);
+            }
+        }
+        //Recursively check the next level nodes
+        return node.get(key);
     }
 
     // See BPlusNode.getLeftmostLeaf.
@@ -90,8 +112,9 @@ class InnerNode extends BPlusNode {
     public LeafNode getLeftmostLeaf() {
         assert(children.size() > 0);
         // TODO(proj2): implement
-
-        return null;
+        // Recursively returns the left most child node until reaching the leaf node
+        BPlusNode node = this.getChild(0);
+        return node.getLeftmostLeaf();
     }
 
     // See BPlusNode.put.
@@ -115,7 +138,11 @@ class InnerNode extends BPlusNode {
     @Override
     public void remove(DataBox key) {
         // TODO(proj2): implement
-
+        //syncs any changes to tree structure, searches for leaf node, and calls remove on leaf
+        this.sync();
+        LeafNode leaf = this.get(key);
+        leaf.remove(key);
+        this.sync();
         return;
     }
 
@@ -316,21 +343,28 @@ class InnerNode extends BPlusNode {
         // (i.e. page 3 and page 7).
 
         // All sizes are in bytes.
-        assert (keys.size() <= 2 * metadata.getOrder());
+        assert (keys.size() <= 2 * metadata.getOrder()); 
         assert (keys.size() + 1 == children.size());
-        int isLeafSize = 1;
+        //Creates space for a page buffer
+        int isLeafSize = 1;  
         int numKeysSize = Integer.BYTES;
         int keysSize = metadata.getKeySchema().getSizeInBytes() * keys.size();
         int childrenSize = Long.BYTES * children.size();
         int size = isLeafSize + numKeysSize + keysSize + childrenSize;
+        //size is the necessary allocated page
 
         ByteBuffer buf = ByteBuffer.allocate(size);
+        //create a buffer of length size bytes
         buf.put((byte) 0);
+        //associate the first byte to be 0 for inner node
         buf.putInt(keys.size());
+        // how many key nodes
         for (DataBox key : keys) {
+            //place the key nodes
             buf.put(key.toBytes());
-        }
+        }   
         for (Long child : children) {
+            // children pointers
             buf.putLong(child);
         }
         return buf.array();
@@ -342,15 +376,21 @@ class InnerNode extends BPlusNode {
     public static InnerNode fromBytes(BPlusTreeMetadata metadata,
                                       BufferManager bufferManager, LockContext treeContext, long pageNum) {
         Page page = bufferManager.fetchPage(treeContext, pageNum);
+        //fetches page
         Buffer buf = page.getBuffer();
-
+        //get node types
         byte nodeType = buf.get();
+        //check if first byte is inner child
         assert(nodeType == (byte) 0);
 
+        //create a list of keys with type databox
         List<DataBox> keys = new ArrayList<>();
+        //create a list of children pointers
         List<Long> children = new ArrayList<>();
+        //create get size of n
         int n = buf.getInt();
         for (int i = 0; i < n; ++i) {
+            //add all keys from databox types
             keys.add(DataBox.fromBytes(buf, metadata.getKeySchema()));
         }
         for (int i = 0; i < n + 1; ++i) {
