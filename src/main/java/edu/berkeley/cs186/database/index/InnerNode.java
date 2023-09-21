@@ -123,6 +123,10 @@ class InnerNode extends BPlusNode {
     public Optional<Pair<DataBox, Long>> put(DataBox key, RecordId rid) {
         // TODO(proj2): implement
 
+        LeafNode node = this.get(key);
+        Optional result = node.put(key, rid);
+        // TODO: handle copy up and push up
+
         return Optional.empty();
     }
 

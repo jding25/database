@@ -260,6 +260,13 @@ public class BPlusTree {
         // Use the provided updateRoot() helper method to change
         // the tree's root if the old root splits.
 
+        // get the leaf node that this incoming node should be placed in
+        LeafNode node = this.root.get(key);
+        // let the child put it in
+        node.put(key, rid);
+        // TODO: handle updateRoot()
+
+
         return;
     }
 
@@ -311,7 +318,7 @@ public class BPlusTree {
         LockUtil.ensureSufficientLockHeld(lockContext, LockType.NL);
 
         // TODO(proj2): implement
-
+        this.root.remove(key);
         return;
     }
 
