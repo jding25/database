@@ -15,6 +15,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.*;
+import java.util.function.Consumer;
 
 /**
  * A persistent B+ tree.
@@ -204,8 +205,7 @@ public class BPlusTree {
         LockUtil.ensureSufficientLockHeld(lockContext, LockType.NL);
 
         // TODO(proj2): Return a BPlusTreeIterator.
-
-        return Collections.emptyIterator();
+        return new BPlusTreeIterator(this);
     }
 
     /**
@@ -237,8 +237,7 @@ public class BPlusTree {
         LockUtil.ensureSufficientLockHeld(lockContext, LockType.NL);
 
         // TODO(proj2): Return a BPlusTreeIterator.
-
-        return Collections.emptyIterator();
+        return new BPlusTreeIterator(this, key);
     }
 
     /**
@@ -442,19 +441,40 @@ public class BPlusTree {
     // Iterator ////////////////////////////////////////////////////////////////
     private class BPlusTreeIterator implements Iterator<RecordId> {
         // TODO(proj2): Add whatever fields and constructors you want here.
+        BPlusTree tree;
+        Iterator<RecordId> leafRecords;
+        LeafNode curNode;
 
+        private BPlusTreeIterator(BPlusTree tree){
+            this.tree = tree;
+            this.curNode = tree.root.getLeftmostLeaf();
+            this.leafRecords = curNode.getRids().iterator();
+        }
+        private BPlusTreeIterator(BPlusTree tree, DataBox key){
+            this.tree = tree;
+            this.curNode = tree.root.getLeftmostLeaf();
+            this.leafRecords = curNode.scanGreaterEqual(key);
+        }
         @Override
         public boolean hasNext() {
             // TODO(proj2): implement
-
+            if (leafRecords.hasNext() || curNode.getRightSibling().isPresent()){
+                return true;
+            }
             return false;
         }
 
         @Override
         public RecordId next() {
             // TODO(proj2): implement
-
-            throw new NoSuchElementException();
+            if (!this.leafRecords.hasNext()){
+                if (!curNode.getRightSibling().isPresent()){
+                    throw new NoSuchElementException();
+                }
+                curNode = curNode.getRightSibling().get();
+                leafRecords = curNode.getRids().iterator();
+            }
+            return leafRecords.next();
         }
     }
 }
