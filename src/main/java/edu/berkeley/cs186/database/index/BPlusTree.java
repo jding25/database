@@ -260,11 +260,21 @@ public class BPlusTree {
         // Use the provided updateRoot() helper method to change
         // the tree's root if the old root splits.
 
-        // get the leaf node that this incoming node should be placed in
-        LeafNode node = this.root.get(key);
-        // let the child put it in
-        node.put(key, rid);
-        // TODO: handle updateRoot()
+        // let the inner node put it in
+        Optional<Pair<DataBox, Long> > result = this.root.put(key, rid);
+        if (result.isPresent()) {
+            // a node return
+            // construct a new node, where the key is the push up key
+            Pair<DataBox, Long> answerPair = result.get();
+            List rootKeys = new ArrayList<DataBox>();
+            List rootChildren = new ArrayList<Long>();
+            rootKeys.add(answerPair.getFirst());
+            rootChildren.add(this.root.getPage().getPageNum());
+            rootChildren.add(answerPair.getSecond());
+            InnerNode newRootNode = new InnerNode(this.metadata, this.bufferManager,rootKeys, rootChildren, this.lockContext);
+            updateRoot(newRootNode);
+        }
+
 
 
         return;
