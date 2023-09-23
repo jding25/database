@@ -440,6 +440,11 @@ class LeafNode extends BPlusNode {
         // get the right sibling
         Optional<Long> rightSibling = Optional.of(buf.getLong());// check if it's -1
 
+
+        if (rightSibling.equals(Optional.of(-1L))){
+            rightSibling = Optional.empty();
+        }
+
         // get the number of key,rid pairs
         int n = buf.getInt();
         // create two array lists for keys and rids

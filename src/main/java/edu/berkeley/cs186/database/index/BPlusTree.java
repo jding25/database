@@ -307,6 +307,7 @@ public class BPlusTree {
         // Use the provided updateRoot() helper method to change
         // the tree's root if the old root splits.
 
+
         return;
     }
 
@@ -441,18 +442,15 @@ public class BPlusTree {
     // Iterator ////////////////////////////////////////////////////////////////
     private class BPlusTreeIterator implements Iterator<RecordId> {
         // TODO(proj2): Add whatever fields and constructors you want here.
-        BPlusTree tree;
         Iterator<RecordId> leafRecords;
         LeafNode curNode;
 
         private BPlusTreeIterator(BPlusTree tree){
-            this.tree = tree;
             this.curNode = tree.root.getLeftmostLeaf();
             this.leafRecords = curNode.getRids().iterator();
         }
         private BPlusTreeIterator(BPlusTree tree, DataBox key){
-            this.tree = tree;
-            this.curNode = tree.root.getLeftmostLeaf();
+            this.curNode = tree.root.get(key);
             this.leafRecords = curNode.scanGreaterEqual(key);
         }
         @Override
@@ -471,10 +469,10 @@ public class BPlusTree {
                 if (!curNode.getRightSibling().isPresent()){
                     throw new NoSuchElementException();
                 }
-                curNode = curNode.getRightSibling().get();
-                leafRecords = curNode.getRids().iterator();
+                this.curNode = curNode.getRightSibling().get();
+                this.leafRecords = curNode.getRids().iterator();
             }
-            return leafRecords.next();
+            return this.leafRecords.next();
         }
     }
 }
