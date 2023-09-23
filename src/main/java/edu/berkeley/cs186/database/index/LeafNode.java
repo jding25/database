@@ -191,7 +191,6 @@ class LeafNode extends BPlusNode {
         if (keys.size() > 2 * this.metadata.getOrder()) {
             // get the middle index
             int middleIndex = Math.floorDiv(2 * this.metadata.getOrder(), 2);
-            Optional rightMostSibling = this.getRightSibling(); // this is the right sibling before splitting
             // create new leaf node
             List<DataBox> newKeys = new ArrayList<>();
             List<RecordId> newRids = new ArrayList<>();
@@ -199,14 +198,17 @@ class LeafNode extends BPlusNode {
             for (int i = middleIndex; i <= 2 * this.metadata.getOrder(); ++ i){
                 newKeys.add(this.keys.get(i));
                 newRids.add(this.rids.get(i));
-                this.keys.remove(i);
-                this.rids.remove(i);
             }
-            LeafNode newNode= new LeafNode(this.metadata, this.bufferManager,newKeys,newRids, rightMostSibling, treeContext);
+            // remove it from the original node
+            for (int i = middleIndex; i <= 2 * this.metadata.getOrder(); ++ i){
+            this.keys.remove(middleIndex);
+            this.rids.remove(middleIndex);
+            }
+            LeafNode newNode= new LeafNode(this.metadata, this.bufferManager,newKeys,newRids, rightSibling, treeContext);
             Long newNodePageNum = newNode.getPage().getPageNum();
             this.rightSibling = Optional.of(newNodePageNum);
             sync();
-            return Optional.of(new Pair<DataBox, Long>(newNode.keys.get(0), newNodePageNum));
+            return Optional.of(new Pair<DataBox, Long>(newKeys.get(0), newNodePageNum));
         } else {
             sync();
             return Optional.empty();

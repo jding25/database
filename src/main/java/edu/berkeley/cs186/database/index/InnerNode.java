@@ -122,17 +122,16 @@ class InnerNode extends BPlusNode {
     @Override
     public Optional<Pair<DataBox, Long>> put(DataBox key, RecordId rid) {
         // TODO(proj2): implement
-        // calling leaf node to put the key
-        sync();
-        LeafNode node = this.get(key);
+        // recursively call lower level node to put the key
+        //get the index where the key is less than the input key
+        int insertIndex = numLessThanEqual(key,this.keys);
+        BPlusNode node = this.getChild(insertIndex);
         Optional<Pair<DataBox, Long>> result = node.put(key, rid);
         // check if there is an overflow
         if (result.equals(Optional.empty())){
             sync();
             return result;
         } else{
-            //get the index where the key is less than the input key
-            int insertIndex = numLessThanEqual(key,this.keys);
             // extract newKey and newChild from the pair
             Pair<DataBox, Long> newKeyPair = result.get();
             DataBox newKey = newKeyPair.getFirst();
@@ -144,28 +143,43 @@ class InnerNode extends BPlusNode {
             if (this.keys.size() > 2 * this.metadata.getOrder()) {
                 // split the parent node into two nodes
                 int midIndex = this.metadata.getOrder();
-                List<DataBox> rightKeys = new ArrayList<>();
-                List<Long> rightChildren = new ArrayList<>();
-                for (int i = midIndex+1; i <= 2 * this.metadata.getOrder(); ++i){
-                    rightKeys.add(this.keys.get(i));
-                    rightChildren.add(this.children.get(i));
-                    this.keys.remove(i);
-                    this.children.remove(i+1);
-                }
-                InnerNode rightNode = new InnerNode(this.metadata, this.bufferManager, rightKeys,rightChildren, this.treeContext);
-                // construct the push up innernode
-                DataBox pushUpKey = this.keys.get(-1);
-                this.keys.remove(-1);
-                List<DataBox> middleKeys = new ArrayList<>();
-                List<Long> middleChildren = new ArrayList<>();
-                middleKeys.add(this.keys.get(0));
-                middleKeys.add(rightNode.keys.get(0));
-                middleChildren.add(this.getPage().getPageNum());
-                middleChildren.add(rightNode.getPage().getPageNum());
-                InnerNode middleNode = new InnerNode(this.metadata, this.bufferManager, middleKeys, middleChildren, this.treeContext);
-                Long middleNodePageNum = middleNode.page.getPageNum();
+//                List<DataBox> rightKeys = new ArrayList<>();
+//                List<Long> rightChildren = new ArrayList<>();
+                //left node: key--[0:midindex]; children--[0:midindex+1]
+                //right node: key--[midindex+1:]; children -- [midindex+1:]
+                // push key: key[midindex]
+                DataBox pushupKey = this.keys.get(midIndex);
+                List<DataBox> rightKeys = this.keys.subList(midIndex+1, this.keys.size());
+                List<Long> rightChildren = this.children.subList(midIndex+1, this.children.size());
+                this.keys = this.keys.subList(0, midIndex);
+                this.children = this.children.subList(0, midIndex+1);
+                InnerNode rightNode = new InnerNode(metadata, bufferManager, rightKeys, rightChildren, treeContext);
+
+//                for (int i = midIndex; i <= 2 * this.metadata.getOrder(); ++i) {
+//                    rightKeys.add(this.keys.get(i));
+//                    rightChildren.add(this.children.get(i+1));
+//                }
+//                for (int i = midIndex; i <= 2 * this.metadata.getOrder(); ++i){
+//                    this.keys.remove(midIndex);
+//                    this.children.remove(midIndex+1);
+//                }
+//                // construct the push up innernode
+//                DataBox pushUpKey = rightKeys.get(0);
+//                rightKeys.remove(0);
+//                InnerNode rightNode = new InnerNode(metadata, bufferManager, rightKeys,rightChildren, treeContext);
+
+//                List<DataBox> middleKeys = new ArrayList<>();
+//                List<Long> middleChildren = new ArrayList<>();
+//                middleKeys.add(pushUpKey);
+//                //middleKeys.add(rightNode.keys.get(0));
+//                middleChildren.add(this.getPage().getPageNum());
+//                middleChildren.add(rightNode.getPage().getPageNum());
+//                InnerNode middleNode = new InnerNode(this.metadata, this.bufferManager, middleKeys, middleChildren, this.treeContext);
+//                Long middleNodePageNum = middleNode.page.getPageNum();
+
                 sync();
-                return Optional.of(new Pair<>(middleNode.keys.get(0), middleNodePageNum));
+//                return Optional.of(new Pair<>(middleNode.keys.get(0), middleNodePageNum));
+                return Optional.of(new Pair<>(pushupKey, rightNode.getPage().getPageNum()));
             } else {
                 sync();
                 return Optional.empty();
