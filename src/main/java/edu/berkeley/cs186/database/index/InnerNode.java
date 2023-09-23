@@ -10,6 +10,7 @@ import edu.berkeley.cs186.database.memory.BufferManager;
 import edu.berkeley.cs186.database.memory.Page;
 import edu.berkeley.cs186.database.table.RecordId;
 
+import javax.xml.crypto.Data;
 import java.nio.ByteBuffer;
 import java.util.*;
 
@@ -82,29 +83,33 @@ class InnerNode extends BPlusNode {
     @Override
     public LeafNode get(DataBox key) {
         // TODO(proj2): implement
-        //Performs binary search on key values assuming sorted key array
-        int startIdx = 0, endIdx = this.keys.size() - 1;
-        //Initialize node to smallest child node
-        BPlusNode node = this.getChild(startIdx);
-        while (startIdx <= endIdx) {
-            int midIdx = Math.floorDiv(startIdx + endIdx, 2);
-            int dataBoxCompare = key.compareTo(this.keys.get(midIdx));
-            //if keyID == midID...
-            if (dataBoxCompare == 0) {
-                node = this.getChild(midIdx + 1);
-                break;
-            //else if keyID > midID...
-            }else if (dataBoxCompare == 1) {
-                startIdx = midIdx + 1;
-                node = this.getChild(midIdx + 1);
-            //else keyID < midID
-            } else {
-                endIdx = midIdx-1;
-                node = this.getChild(midIdx);
-            }
-        }
-        //Recursively check the next level nodes
-        return node.get(key);
+
+        //get the number of elements less than the key
+        int index = numLessThanEqual(key, this.keys);
+        return this.getChild(index).get(key);
+//        //Performs binary search on key values assuming sorted key array
+//        int startIdx = 0, endIdx = this.keys.size() - 1;
+//        //Initialize node to smallest child node
+//        BPlusNode node = this.getChild(startIdx);
+//        while (startIdx <= endIdx) {
+//            int midIdx = Math.floorDiv(startIdx + endIdx, 2);
+//            int dataBoxCompare = key.compareTo(this.keys.get(midIdx));
+//            //if keyID == midID...
+//            if (dataBoxCompare == 0) {
+//                node = this.getChild(midIdx + 1);
+//                break;
+//            //else if keyID > midID...
+//            }else if (dataBoxCompare == 1) {
+//                startIdx = midIdx + 1;
+//                node = this.getChild(midIdx + 1);
+//            //else keyID < midID
+//            } else {
+//                endIdx = midIdx-1;
+//                node = this.getChild(midIdx);
+//            }
+//        }
+//        //Recursively check the next level nodes
+//        return node.get(key);
     }
 
     
@@ -141,44 +146,16 @@ class InnerNode extends BPlusNode {
             this.children.add(insertIndex + 1, newChild);
             // determine if there is an overflow:
             if (this.keys.size() > 2 * this.metadata.getOrder()) {
-                // split the parent node into two nodes
+                // extract the pushup key
                 int midIndex = this.metadata.getOrder();
-//                List<DataBox> rightKeys = new ArrayList<>();
-//                List<Long> rightChildren = new ArrayList<>();
-                //left node: key--[0:midindex]; children--[0:midindex+1]
-                //right node: key--[midindex+1:]; children -- [midindex+1:]
-                // push key: key[midindex]
                 DataBox pushupKey = this.keys.get(midIndex);
+                // split the parent node into two nodes
                 List<DataBox> rightKeys = this.keys.subList(midIndex+1, this.keys.size());
                 List<Long> rightChildren = this.children.subList(midIndex+1, this.children.size());
                 this.keys = this.keys.subList(0, midIndex);
                 this.children = this.children.subList(0, midIndex+1);
                 InnerNode rightNode = new InnerNode(metadata, bufferManager, rightKeys, rightChildren, treeContext);
-
-//                for (int i = midIndex; i <= 2 * this.metadata.getOrder(); ++i) {
-//                    rightKeys.add(this.keys.get(i));
-//                    rightChildren.add(this.children.get(i+1));
-//                }
-//                for (int i = midIndex; i <= 2 * this.metadata.getOrder(); ++i){
-//                    this.keys.remove(midIndex);
-//                    this.children.remove(midIndex+1);
-//                }
-//                // construct the push up innernode
-//                DataBox pushUpKey = rightKeys.get(0);
-//                rightKeys.remove(0);
-//                InnerNode rightNode = new InnerNode(metadata, bufferManager, rightKeys,rightChildren, treeContext);
-
-//                List<DataBox> middleKeys = new ArrayList<>();
-//                List<Long> middleChildren = new ArrayList<>();
-//                middleKeys.add(pushUpKey);
-//                //middleKeys.add(rightNode.keys.get(0));
-//                middleChildren.add(this.getPage().getPageNum());
-//                middleChildren.add(rightNode.getPage().getPageNum());
-//                InnerNode middleNode = new InnerNode(this.metadata, this.bufferManager, middleKeys, middleChildren, this.treeContext);
-//                Long middleNodePageNum = middleNode.page.getPageNum();
-
                 sync();
-//                return Optional.of(new Pair<>(middleNode.keys.get(0), middleNodePageNum));
                 return Optional.of(new Pair<>(pushupKey, rightNode.getPage().getPageNum()));
             } else {
                 sync();
@@ -193,7 +170,30 @@ class InnerNode extends BPlusNode {
     public Optional<Pair<DataBox, Long>> bulkLoad(Iterator<Pair<DataBox, RecordId>> data,
             float fillFactor) {
         // TODO(proj2): implement
+        while (data.hasNext()) {
+            Optional<Pair<DataBox, Long>> result = this.getChild(-1).bulkLoad(data, fillFactor);
+            if (result.isPresent()){
+                // a split key
+                // add key and child into the current list.
+                this.keys.add(result.get().getFirst());
+                this.children.add(result.get().getSecond());
+                int d = this.metadata.getOrder();
+                if (keys.size() > 2*d){
+                    //push up key
+                    DataBox pushupKey = this.keys.remove(d);
+                    // split node
+                    List<DataBox> rightKeys = this.keys.subList(d, this.keys.size());
+                    List<Long> rightChildren = this.children.subList(d+1, this.children.size());
+                    this.keys = this.keys.subList(0, d);
+                    this.children = this.children.subList(0,d+1);
+                    InnerNode rightNode = new InnerNode(this.metadata, this.bufferManager, rightKeys, rightChildren, this.treeContext);
+                    sync();
+                    return Optional.of(new Pair<>(pushupKey, rightNode.getPage().getPageNum()));
 
+                }
+            }
+        }
+        sync();
         return Optional.empty();
     }
 

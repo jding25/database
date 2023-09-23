@@ -8,6 +8,7 @@ import edu.berkeley.cs186.database.databox.Type;
 import edu.berkeley.cs186.database.memory.BufferManager;
 import edu.berkeley.cs186.database.memory.Page;
 import edu.berkeley.cs186.database.table.RecordId;
+import sun.java2d.ReentrantContextProvider;
 
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -192,18 +193,22 @@ class LeafNode extends BPlusNode {
             // get the middle index
             int middleIndex = Math.floorDiv(2 * this.metadata.getOrder(), 2);
             // create new leaf node
-            List<DataBox> newKeys = new ArrayList<>();
-            List<RecordId> newRids = new ArrayList<>();
+//            List<DataBox> newKeys = new ArrayList<>();
+//            List<RecordId> newRids = new ArrayList<>();
+            List<DataBox> newKeys = this.keys.subList(middleIndex, this.keys.size());
+            List<RecordId> newRids = this.rids.subList(middleIndex, this.rids.size());
+            this.keys = this.keys.subList(0, middleIndex);
+            this.rids = this.rids.subList(0, middleIndex);
             // add all keys after midpoint to the new leaf node keys arrays, and remove them from old keys array
-            for (int i = middleIndex; i <= 2 * this.metadata.getOrder(); ++ i){
-                newKeys.add(this.keys.get(i));
-                newRids.add(this.rids.get(i));
-            }
+//            for (int i = middleIndex; i <= 2 * this.metadata.getOrder(); ++ i){
+//                newKeys.add(this.keys.get(i));
+//                newRids.add(this.rids.get(i));
+//            }
             // remove it from the original node
-            for (int i = middleIndex; i <= 2 * this.metadata.getOrder(); ++ i){
-            this.keys.remove(middleIndex);
-            this.rids.remove(middleIndex);
-            }
+//            for (int i = middleIndex; i <= 2 * this.metadata.getOrder(); ++ i){
+//            this.keys.remove(middleIndex);
+//            this.rids.remove(middleIndex);
+//            }
             LeafNode newNode= new LeafNode(this.metadata, this.bufferManager,newKeys,newRids, rightSibling, treeContext);
             Long newNodePageNum = newNode.getPage().getPageNum();
             this.rightSibling = Optional.of(newNodePageNum);
@@ -220,7 +225,28 @@ class LeafNode extends BPlusNode {
     public Optional<Pair<DataBox, Long>> bulkLoad(Iterator<Pair<DataBox, RecordId>> data,
             float fillFactor) {
         // TODO(proj2): implement
-
+        //get the next pair
+        while (data.hasNext()) {
+            Pair<DataBox, RecordId> keyRids = data.next();
+            // insert the key into keys
+            this.keys.add(keyRids.getFirst());
+            this.rids.add(keyRids.getSecond());
+            if (this.keys.size() > 2 * this.metadata.getOrder() * fillFactor) {
+                // if the number of keys in the leafnode is more than fillFactor * 2d,
+                // split the last key into a new node,
+                List<DataBox> splitKeys = new ArrayList<>();
+                List<RecordId> splitRids = new ArrayList<>();
+                splitKeys.add(this.keys.remove(-1));
+                splitRids.add(this.rids.remove(-1));
+                LeafNode splitNode = new LeafNode(this.metadata, this.bufferManager, splitKeys, splitRids, Optional.empty(), this.treeContext);
+                //update the existing node's right sibling
+                this.rightSibling = Optional.of(splitNode.getPage().getPageNum());
+                sync();
+                return Optional.of(new Pair<DataBox, Long>(splitKeys.get(0), splitNode.getPage().getPageNum()));
+            }
+        }
+        // and return the split node
+        sync();
         return Optional.empty();
     }
 
