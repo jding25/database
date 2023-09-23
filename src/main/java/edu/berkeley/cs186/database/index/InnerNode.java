@@ -171,10 +171,13 @@ class InnerNode extends BPlusNode {
             float fillFactor) {
         // TODO(proj2): implement
         while (data.hasNext()) {
-            Optional<Pair<DataBox, Long>> result = this.getChild(-1).bulkLoad(data, fillFactor);
+            Optional<Pair<DataBox, Long>> result = this.getChild(this.children.size()-1).bulkLoad(data, fillFactor);
             if (result.isPresent()){
                 // a split key
                 // add key and child into the current list.
+//                int insertIndex = numLessThanEqual(result.get().getFirst(), this.keys);
+//                this.keys.add(insertIndex, result.get().getFirst());
+//                this.children.add(insertIndex, result.get().getSecond());
                 this.keys.add(result.get().getFirst());
                 this.children.add(result.get().getSecond());
                 int d = this.metadata.getOrder();

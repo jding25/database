@@ -8,7 +8,7 @@ import edu.berkeley.cs186.database.databox.Type;
 import edu.berkeley.cs186.database.memory.BufferManager;
 import edu.berkeley.cs186.database.memory.Page;
 import edu.berkeley.cs186.database.table.RecordId;
-import sun.java2d.ReentrantContextProvider;
+
 
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -229,6 +229,7 @@ class LeafNode extends BPlusNode {
         while (data.hasNext()) {
             Pair<DataBox, RecordId> keyRids = data.next();
             // insert the key into keys
+//            int insertIndex = InnerNode.numLessThanEqual(keyRids.getFirst(),this.keys);
             this.keys.add(keyRids.getFirst());
             this.rids.add(keyRids.getSecond());
             if (this.keys.size() > 2 * this.metadata.getOrder() * fillFactor) {
@@ -236,8 +237,8 @@ class LeafNode extends BPlusNode {
                 // split the last key into a new node,
                 List<DataBox> splitKeys = new ArrayList<>();
                 List<RecordId> splitRids = new ArrayList<>();
-                splitKeys.add(this.keys.remove(-1));
-                splitRids.add(this.rids.remove(-1));
+                splitKeys.add(this.keys.remove(this.keys.size()-1));
+                splitRids.add(this.rids.remove(this.rids.size()-1));
                 LeafNode splitNode = new LeafNode(this.metadata, this.bufferManager, splitKeys, splitRids, Optional.empty(), this.treeContext);
                 //update the existing node's right sibling
                 this.rightSibling = Optional.of(splitNode.getPage().getPageNum());
