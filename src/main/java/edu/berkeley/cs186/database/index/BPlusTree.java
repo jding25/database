@@ -444,19 +444,20 @@ public class BPlusTree {
         // TODO(proj2): Add whatever fields and constructors you want here.
         Iterator<RecordId> leafRecords;
         LeafNode curNode;
-
+        //First constructor is left leaf case and second iterator is to set initial key start point
         private BPlusTreeIterator(BPlusTree tree){
             this.curNode = tree.root.getLeftmostLeaf();
-            this.leafRecords = curNode.getRids().iterator();
+            this.leafRecords = this.curNode.getRids().iterator();
         }
         private BPlusTreeIterator(BPlusTree tree, DataBox key){
             this.curNode = tree.root.get(key);
-            this.leafRecords = curNode.scanGreaterEqual(key);
+            this.leafRecords = this.curNode.scanGreaterEqual(key);
         }
         @Override
         public boolean hasNext() {
             // TODO(proj2): implement
-            if (leafRecords.hasNext() || curNode.getRightSibling().isPresent()){
+            //Is there a next iterator item. If not, are there other leaves to create a new iterator.
+            if (this.leafRecords.hasNext() || this.curNode.getRightSibling().isPresent()){
                 return true;
             }
             return false;
@@ -465,13 +466,17 @@ public class BPlusTree {
         @Override
         public RecordId next() {
             // TODO(proj2): implement
+            //Check if the edge of a leaf is hit
             if (!this.leafRecords.hasNext()){
-                if (!curNode.getRightSibling().isPresent()){
+                //Check if a right leaf exists
+                if (!this.curNode.getRightSibling().isPresent()){
                     throw new NoSuchElementException();
                 }
-                this.curNode = curNode.getRightSibling().get();
-                this.leafRecords = curNode.getRids().iterator();
+                //If so, set the next leaf as curNode and load new iterator over values
+                this.curNode = this.curNode.getRightSibling().get();
+                this.leafRecords = this.curNode.getRids().iterator();
             }
+            //Get next record
             return this.leafRecords.next();
         }
     }
